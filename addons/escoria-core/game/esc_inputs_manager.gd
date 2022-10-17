@@ -294,29 +294,30 @@ func _on_mouse_exited_inventory_item() -> void:
 #
 # - item: The Escoria item hovered
 func _on_mouse_entered_item(item: ESCItem) -> void:
-	if item as ESCPlayer and not (item as ESCPlayer).selectable:
-			escoria.logger.debug(
-				self,
-				"Ignoring mouse entering player %s: Player not selectable." % [item.global_id]
-			)
-			return
-
-	if not escoria.action_manager.is_object_actionable(item.global_id):
-		escoria.logger.debug(
-			self,
-			"Ignoring mouse entering item %s." % [item.global_id]
-		)
-
+	var object: ESCObject = escoria.object_manager.get_object(item.global_id)
+	if object and not object.interactive:
+		hover_stack_erase_item(item)
+		hotspot_focused = ""
+		escoria.main.current_scene.game.element_unfocused()
 		return
 
+	if object and not object.interactive:
+		return
+	if object and object.node is ESCPlayer and not (object.node as ESCPlayer).selectable:
+		return
 	escoria.logger.info(
 		self,
 		"Item focused: %s" % item.global_id
 	)
 	_clean_hover_stack()
 
-	hover_stack.push_back(item)
-	hover_stack.sort_custom(HoverStackSorter, "sort_ascending_z_index")
+	if not hover_stack.empty():
+		if item.z_index < hover_stack.back().z_index:
+			hover_stack.insert(hover_stack.size() - 1, item)
+		else:
+			hover_stack.push_back(item)
+	else:
+		hover_stack.push_back(item)
 
 	hotspot_focused = hover_stack.back().global_id
 	escoria.main.current_scene.game.element_focused(hotspot_focused)
@@ -328,11 +329,22 @@ func _on_mouse_entered_item(item: ESCItem) -> void:
 #
 # - item: The Escoria item hovered
 func _on_mouse_exited_item(item: ESCItem) -> void:
+	var object: ESCObject = escoria.object_manager.get_object(item.global_id)
+	if object and not object.interactive:
+		hover_stack_erase_item(item)
+		hotspot_focused = ""
+		escoria.main.current_scene.game.element_unfocused()
+		return
+
+	if object and not object.interactive:
+		return
+	if object and object.node is ESCPlayer and not (object.node as ESCPlayer).selectable:
+		return
 	escoria.logger.info(
 		self,
 		"Item unfocused: %s" % item.global_id
 	)
-	_hover_stack_erase_item(item)
+	hover_stack_erase_item(item)
 	if hover_stack.empty():
 		hotspot_focused = ""
 		escoria.main.current_scene.game.element_unfocused()
@@ -349,40 +361,33 @@ func _on_mouse_exited_item(item: ESCItem) -> void:
 # - event: The input event from the click
 func _on_mouse_left_clicked_item(item: ESCItem, event: InputEvent) -> void:
 	if input_mode == INPUT_ALL:
-		if item as ESCPlayer and not (item as ESCPlayer).selectable:
-			escoria.logger.debug(
-				self,
-				"Ignoring left click on player %s: Player not selectable." % [item.global_id]
-			)
-
-			if not hover_stack.empty():
-				var next_item = hover_stack.pop_back()
-				_on_mouse_left_clicked_item(next_item, event)
-	
-			return
-
-		if not escoria.action_manager.is_object_actionable(item.global_id):
-			escoria.logger.debug(
-				self,
-				"Ignoring left click on %s with event %s." % [item.global_id, event]
-			)
-
-			# Treat this as a background click now
-			_on_left_click_on_bg(event.position)
-
-			return
-
+		var actual_item
 		if hover_stack.empty() or hover_stack.back() == item:
-			escoria.logger.info(
+			actual_item = item
+		else:
+			actual_item = hover_stack.back()
+	
+		if actual_item == null:
+			escoria.logger.error(
 				self,
-				"Item %s left clicked with event %s." % [item.global_id, event]
+				"Clicked item %s cannot be activated (player not selectable or not interactive). "
+						% [item.global_id, event] +
+				"No valid item found in the items stack. Action cancelled."
 			)
-			hotspot_focused = item.global_id
+			return
+
+		# We check if the clicked object is ESCPlayer and not selectable. If so
+		# we consider we clicked through it.
+		var object: ESCObject = escoria.object_manager.get_object(item.global_id)
+		if object.node is ESCPlayer and not (object.node as ESCPlayer).selectable:
+			if event.position:
+				(escoria.main.current_scene.game as ESCGame).left_click_on_bg(event.position)
+		else:
+			hotspot_focused = actual_item.global_id
 			escoria.main.current_scene.game.left_click_on_item(
-				item.global_id,
+				actual_item.global_id,
 				event
 			)
-
 
 # An Escoria item was double-clicked with the LMB
 #
@@ -395,38 +400,37 @@ func _on_mouse_left_double_clicked_item(
 	event: InputEvent
 ) -> void:
 	if input_mode == INPUT_ALL:
-		if item as ESCPlayer and not (item as ESCPlayer).selectable:
-			escoria.logger.debug(
+		var actual_item
+		if hover_stack.empty() or hover_stack.back() == item:
+			actual_item = item
+		else:
+			actual_item = hover_stack.back()
+	
+		if actual_item == null:
+			escoria.logger.error(
 				self,
-				"Ignoring double-left click on player %s: Player not selectable." % [item.global_id]
+				"Clicked item %s cannot be activated (player not selectable or not interactive). "
+						% [item.global_id, event] +
+				"No valid item found in the items stack. Action cancelled."
 			)
-
-			if not hover_stack.empty():
-				var next_item = hover_stack.pop_back()
-				_on_mouse_left_double_clicked_item(next_item, event)
-
 			return
-
-		if not escoria.action_manager.is_object_actionable(item.global_id):
-			escoria.logger.debug(
+		
+		# We check if the clicked object is ESCPlayer and not selectable. If so
+		# we consider we clicked through it.
+		var object: ESCObject = escoria.object_manager.get_object(item.global_id)
+		if object.node is ESCPlayer and not (object.node as ESCPlayer).selectable:
+			if event.position:
+				(escoria.main.current_scene.game as ESCGame).left_click_on_bg(event.position)
+		else:
+			escoria.logger.info(
 				self,
-				"Ignoring double-left click on %s with event %s." % [item.global_id, event]
+				"Item %s left double clicked with event %s." % [actual_item.global_id, event]
 			)
-
-			# Treat this as a background click now
-			_on_double_left_click_on_bg(event.position)
-
-			return
-
-		escoria.logger.info(
-			self,
-			"Item %s left double clicked with event %s." % [item.global_id, event]
-		)
-		hotspot_focused = item.global_id
-		escoria.main.current_scene.game.left_double_click_on_item(
-			item.global_id,
-			event
-		)
+			hotspot_focused = actual_item.global_id
+			escoria.main.current_scene.game.left_double_click_on_item(
+				actual_item.global_id,
+				event
+			)
 
 
 # An Escoria item was clicked with the RMB
@@ -437,38 +441,38 @@ func _on_mouse_left_double_clicked_item(
 # - event: The input event from the click
 func _on_mouse_right_clicked_item(item: ESCItem, event: InputEvent) -> void:
 	if input_mode == INPUT_ALL:
-		if item as ESCPlayer and not (item as ESCPlayer).selectable:
-			escoria.logger.debug(
+		var actual_item
+		if hover_stack.empty() or hover_stack.back() == item:
+			actual_item = item
+		else:
+			actual_item = hover_stack.back()
+	
+		# We check if the clicked object is ESCPlayer and not selectable. If so
+		# we consider we clicked through it.
+		var object: ESCObject = escoria.object_manager.get_object(item.global_id)
+		if object.node is ESCPlayer and not (object.node as ESCPlayer).selectable:
+			actual_item = hover_stack.back()
+	
+		if actual_item == null:
+			if event.position:
+				(escoria.main.current_scene.game as ESCGame).right_click_on_bg(event.position)
+			else:
+				escoria.logger.info(
+					self,
+					"Clicked item %s with event %s cannot be activated (player not selectable or not interactive).\n"
+							% [item.global_id, event] +
+					"No valid item found in the items stack. Action cancelled."
+				)
+		else:
+			escoria.logger.info(
 				self,
-				"Ignoring right click on player %s: Player not selectable." % [item.global_id]
+				"Item %s right clicked with event %s." % [actual_item.global_id, event]
 			)
-
-			if not hover_stack.empty():
-				var next_item = hover_stack.pop_back()
-				_on_mouse_right_clicked_item(next_item, event)
-
-			return
-
-		if not escoria.action_manager.is_object_actionable(item.global_id):
-			escoria.logger.debug(
-				self,
-				"Ignoring right click on %s with event %s." % [item.global_id, event]
+			hotspot_focused = actual_item.global_id
+			escoria.main.current_scene.game.right_click_on_item(
+				actual_item.global_id,
+				event
 			)
-
-			# Treat this as a background click now
-			_on_right_click_on_bg(event.position)
-
-			return
-
-		escoria.logger.info(
-			self,
-			"Item %s right clicked with event %s." % [item.global_id, event]
-		)
-		hotspot_focused = item.global_id
-		escoria.main.current_scene.game.right_click_on_item(
-			item.global_id,
-			event
-		)
 
 
 # The mousewheel was turned
@@ -496,12 +500,5 @@ func _clean_hover_stack():
 #
 # #### Parameters
 # - item: the item to remove from the hover stack
-func _hover_stack_erase_item(item):
+func hover_stack_erase_item(item):
 	hover_stack.erase(item)
-
-
-class HoverStackSorter:
-	static func sort_ascending_z_index(a, b):
-		if a.z_index < b.z_index:
-			return true
-		return false

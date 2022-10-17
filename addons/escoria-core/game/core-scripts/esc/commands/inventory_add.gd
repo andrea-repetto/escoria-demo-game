@@ -13,9 +13,6 @@ extends ESCBaseCommand
 class_name InventoryAddCommand
 
 
-const ILLEGAL_STRINGS = ["/"]
-
-
 # Return the descriptor of the arguments of this command
 func configure() -> ESCCommandArgumentDescriptor:
 	return ESCCommandArgumentDescriptor.new(
@@ -30,15 +27,13 @@ func validate(arguments: Array):
 	if not .validate(arguments):
 		return false
 
-	for s in ILLEGAL_STRINGS:
-		if s in arguments[0]:
-			escoria.logger.error(
-				self,
-				"[%s]: invalid item name. Item name %s cannot contain the string '%s'."
-						% [get_command_name(), arguments[0], s]
-			)
-			return false
-
+	if arguments[0].begins_with("i/"):
+		escoria.logger.error(
+			self,
+			"[%s]: invalid item name. Item name %s cannot start with 'i/'."
+					% [get_command_name(), arguments[0]]
+		)
+		return false
 	return true
 
 

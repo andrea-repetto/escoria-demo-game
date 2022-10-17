@@ -66,9 +66,6 @@ var globals_manager: ESCGlobalsManager
 # ESC command registry instance
 var command_registry: ESCCommandRegistry
 
-# Manager of game settings (resolution, sound, etc)
-var settings_manager: ESCSettingsManager
-
 # Resource cache handler
 var resource_cache: ESCResourceCache
 
@@ -77,6 +74,9 @@ var dialog_player: ESCDialogPlayer
 
 # Inventory scene
 var inventory
+
+# These are settings that the player can affect and save/load later
+var settings: ESCSaveSettings
 
 # The main scene
 var main
@@ -96,10 +96,6 @@ var player_camera: ESCCamera
 # The compiled start script loaded from ProjectSettings
 # escoria/main/game_start_script
 var start_script: ESCScript
-
-# The "fallback" script to use when an action is tried on an item that hasn't
-# been explicitly scripted.
-var action_default_script: ESCScript
 
 # Whether we ran a room directly from editor, not a full game
 var is_direct_room_run: bool = false
@@ -151,6 +147,40 @@ func set_game_paused(p_paused: bool):
 
 	if is_instance_valid(scene_tree):
 		scene_tree.paused = p_paused
+
+
+# Apply the loaded settings
+#
+# #### Parameters
+#
+# * p_settings: Loaded settings
+func apply_settings(p_settings: ESCSaveSettings) -> void:
+	if not Engine.is_editor_hint():
+		escoria.logger.info(self, "******* settings loaded")
+		if p_settings != null:
+			settings = p_settings
+		else:
+			settings = ESCSaveSettings.new()
+
+		AudioServer.set_bus_volume_db(
+			AudioServer.get_bus_index(BUS_MASTER),
+			linear2db(settings.master_volume)
+		)
+		AudioServer.set_bus_volume_db(
+			AudioServer.get_bus_index(BUS_SFX),
+			linear2db(settings.sfx_volume)
+		)
+		AudioServer.set_bus_volume_db(
+			AudioServer.get_bus_index(BUS_MUSIC),
+			linear2db(settings.music_volume)
+		)
+		AudioServer.set_bus_volume_db(
+			AudioServer.get_bus_index(BUS_SPEECH),
+			linear2db(settings.speech_volume)
+		)
+		TranslationServer.set_locale(settings.text_lang)
+
+		game_scene.apply_custom_settings(settings.custom_settings)
 
 
 # Called from main menu's "new game" button

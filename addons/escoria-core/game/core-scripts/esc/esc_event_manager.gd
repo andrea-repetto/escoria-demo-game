@@ -184,12 +184,12 @@ func queue_event_from_esc(script_object: ESCScript, event: String,
 			var rc = yield(self, "event_finished")
 			while rc[1] != event:
 				rc = yield(self, "event_finished")
-			return rc[0]
+			return rc
 		else:
 			var rc = yield(self, "background_event_finished")
 			while rc[1] != event and rc[2] != channel:
 				rc = yield(self, "background_event_finished")
-			return rc[0]
+			return rc
 
 	return ESCExecution.RC_OK
 
@@ -284,11 +284,6 @@ func queue_background_event(channel_name: String, event: ESCEvent) -> void:
 # #### Parameters
 # - exceptions: an optional list of events which should be left running or queued
 func interrupt(exceptions: PoolStringArray = []) -> void:
-	if escoria.main.current_scene != null \
-			and escoria.main.current_scene.player != null \
-			and escoria.main.current_scene.player.is_moving():
-		escoria.main.current_scene.player.stop_walking_now()
-
 	for channel_name in _running_events.keys():
 		if _running_events[channel_name] != null and not _running_events[channel_name].name in exceptions:
 			escoria.logger.debug(

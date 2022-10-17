@@ -28,7 +28,7 @@ func _init():
 	escoria.resource_cache.start()
 	escoria.save_manager = ESCSaveManager.new()
 	escoria.inputs_manager = ESCInputsManager.new()
-	escoria.settings_manager = ESCSettingsManager.new()
+	escoria.settings = ESCSaveSettings.new()
 
 	if ESCProjectSettingsManager.get_setting(
 		ESCProjectSettingsManager.GAME_SCENE
@@ -47,12 +47,10 @@ func _init():
 func _ready():
 	_handle_direct_scene_run()
 
-	escoria.settings_manager.load_settings()
-	escoria.settings_manager.apply_settings()
-
+	escoria.settings = escoria.save_manager.load_settings()
+	escoria.apply_settings(escoria.settings)
 	escoria.room_manager.register_reserved_globals()
 	escoria.inputs_manager.register_core()
-
 	if ESCProjectSettingsManager.get_setting(
 		ESCProjectSettingsManager.GAME_START_SCRIPT
 	).empty():
@@ -66,21 +64,6 @@ func _ready():
 			ESCProjectSettingsManager.GAME_START_SCRIPT
 		)
 	)
-
-	if ESCProjectSettingsManager.get_setting(
-		ESCProjectSettingsManager.ACTION_DEFAULT_SCRIPT
-	).empty():
-		escoria.logger.info(
-			self,
-			"Project setting '%s' is not set. No action defaults will be used."
-					% ESCProjectSettingsManager.ACTION_DEFAULT_SCRIPT
-		)
-	else:
-		escoria.action_default_script = escoria.esc_compiler.load_esc_file(
-			ESCProjectSettingsManager.get_setting(
-				ESCProjectSettingsManager.ACTION_DEFAULT_SCRIPT
-			)
-		)
 
 	escoria.main = main
 

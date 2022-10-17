@@ -89,7 +89,7 @@ func _exit_tree():
 
 # Ready function
 func _ready():
-	escoria.settings_manager.apply_settings()
+	escoria.apply_settings(escoria.settings)
 	connect("crash_popup_confirmed", escoria, "quit",
 		[], CONNECT_ONESHOT)
 
@@ -162,17 +162,11 @@ func do_walk(destination, params: Array = [], can_interrupt: bool = false) -> vo
 #
 # - position: Position clicked
 func left_click_on_bg(position: Vector2) -> void:
-	if escoria.main.current_scene.player:
-		do_walk(
-			position,
-			[escoria.main.current_scene.player.global_id],
-			true
-		)
-	else:
-		escoria.logger.trace(
-			self,
-			"No player loaded for current scene. Ignoring left click on background."
-		)
+	do_walk(
+		position,
+		[escoria.main.current_scene.player.global_id],
+		true
+	)
 
 
 # Called when the player right clicks on the background
@@ -182,17 +176,11 @@ func left_click_on_bg(position: Vector2) -> void:
 #
 # - position: Position clicked
 func right_click_on_bg(position: Vector2) -> void:
-	if escoria.main.current_scene.player:
-		do_walk(
-			position,
-			[escoria.main.current_scene.player.global_id],
-			true
-		)
-	else:
-		escoria.logger.trace(
-			self,
-			"No player loaded for current scene. Ignoring right click on background."
-		)
+	do_walk(
+		position,
+		[escoria.main.current_scene.player.global_id],
+		true
+	)
 
 
 # Called when the player double clicks on the background
@@ -202,18 +190,11 @@ func right_click_on_bg(position: Vector2) -> void:
 #
 # - position: Position clicked
 func left_double_click_on_bg(position: Vector2) -> void:
-	if escoria.main.current_scene.player:
-		do_walk(
-			position,
-			[escoria.main.current_scene.player.global_id, true],
-			true
-		)
-	else:
-		escoria.logger.trace(
-			self,
-			"No player loaded for current scene. Ignoring left double-click on background."
-		)
-
+	do_walk(
+		position,
+		[escoria.main.current_scene.player.global_id, true],
+		true
+	)
 
 # Called when an element in the scene was focused
 # (Needs to be overridden, if supported)
